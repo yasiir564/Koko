@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Organic Flower Garden for Kowsar</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #1a472a, #2d5a3f);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .garden {
+            position: relative;
+            width: 800px;
+            height: 600px;
+        }
+
+        .stem {
+            position: absolute;
+            bottom: 0;
+            width: 8px;
+            background: linear-gradient(to bottom, #2d5a3f, #1a472a);
+            transform-origin: bottom center;
+            animation: sway 4s infinite ease-in-out;
+        }
+
+        .leaf {
+            position: absolute;
+            width: 40px;
+            height: 20px;
+            background: linear-gradient(45deg, #3a7850, #2d5a3f);
+            border-radius: 50% 50% 50% 0;
+            transform-origin: bottom left;
+            animation: leafSway 3s infinite ease-in-out;
+        }
+
+        .flower {
+            position: absolute;
+            top: -40px;
+            left: -36px;
+            width: 80px;
+            height: 80px;
+        }
+
+        .petal {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(45deg, #ff3366, #ff0033);
+            border-radius: 50% 50% 50% 0;
+            transform-origin: bottom right;
+            animation: petalSway 3s infinite ease-in-out;
+        }
+
+        .gift-box {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(45deg, #ff3366, #ff0033);
+            border-radius: 10px;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: pointer;
+            transition: all 0.5s;
+            z-index: 100;
+        }
+
+        .gift-box::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 20px;
+            background: #ff6b99;
+            top: 40px;
+        }
+
+        .gift-box::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 100%;
+            background: #ff6b99;
+            left: 40px;
+        }
+
+        .gift-message {
+            position: absolute;
+            font-family: 'Arial', sans-serif;
+            font-size: 2em;
+            color: white;
+            text-align: center;
+            width: 100%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: all 0.5s;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        @keyframes sway {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+        }
+
+        @keyframes leafSway {
+            0%, 100% { transform: rotate(-15deg); }
+            50% { transform: rotate(5deg); }
+        }
+
+        @keyframes petalSway {
+            0%, 100% { transform: rotate(-10deg) scale(0.95); }
+            50% { transform: rotate(10deg) scale(1.05); }
+        }
+    </style>
+</head>
+<body>
+    <div class="garden"></div>
+    <div class="gift-box"></div>
+    <div class="gift-message">Kowsar</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const garden = document.querySelector('.garden');
+            const stemCount = 5;
+            
+            // Create multiple stems with flowers and leaves
+            for (let i = 0; i < stemCount; i++) {
+                const stem = document.createElement('div');
+                stem.className = 'stem';
+                stem.style.left = `${150 + i * 120}px`;
+                stem.style.height = `${300 + Math.random() * 100}px`;
+                stem.style.animationDelay = `${i * 0.2}s`;
+                
+                // Add leaves
+                for (let j = 0; j < 3; j++) {
+                    const leaf = document.createElement('div');
+                    leaf.className = 'leaf';
+                    leaf.style.bottom = `${50 + j * 80}px`;
+                    leaf.style.animationDelay = `${i * 0.2 + j * 0.1}s`;
+                    
+                    // Alternate leaf sides
+                    if (j % 2 === 0) {
+                        leaf.style.left = '0';
+                        leaf.style.transform = 'rotate(-45deg)';
+                    } else {
+                        leaf.style.right = '0';
+                        leaf.style.transform = 'rotate(135deg)';
+                    }
+                    
+                    stem.appendChild(leaf);
+                }
+
+                // Add flower
+                const flower = document.createElement('div');
+                flower.className = 'flower';
+                
+                // Create petals
+                for (let k = 0; k < 8; k++) {
+                    const petal = document.createElement('div');
+                    petal.className = 'petal';
+                    petal.style.transform = `rotate(${k * 45}deg)`;
+                    petal.style.animationDelay = `${i * 0.2 + k * 0.1}s`;
+                    flower.appendChild(petal);
+                }
+                
+                stem.appendChild(flower);
+                garden.appendChild(stem);
+            }
+
+            // Gift box interaction
+            const giftBox = document.querySelector('.gift-box');
+            const giftMessage = document.querySelector('.gift-message');
+            let isOpen = false;
+
+            giftBox.addEventListener('click', () => {
+                if (!isOpen) {
+                    giftBox.style.transform = 'translateX(-50%) scale(1.5)';
+                    giftBox.style.background = 'linear-gradient(45deg, #ff6b99, #ff3366)';
+                    giftMessage.style.opacity = '1';
+                    isOpen = true;
+                } else {
+                    giftBox.style.transform = 'translateX(-50%) scale(1)';
+                    giftBox.style.background = 'linear-gradient(45deg, #ff3366, #ff0033)';
+                    giftMessage.style.opacity = '0';
+                    isOpen = false;
+                }
+            });
+
+            // Add hover effect to flowers
+            document.querySelectorAll('.flower').forEach(flower => {
+                flower.addEventListener('mouseover', () => {
+                    flower.style.transform = 'scale(1.2)';
+                });
+                flower.addEventListener('mouseout', () => {
+                    flower.style.transform = 'scale(1)';
+                });
+            });
+        });
+    </script>
+</body>
+</html>
