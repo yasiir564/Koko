@@ -209,12 +209,159 @@ body {
         animation: none;
     }
 }
+        /* Previous CSS remains the same, adding new elements: */
+
+.butterflies {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.butterfly {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    animation: flyAround 15s infinite linear;
+}
+
+.butterfly::before,
+.butterfly::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 15px;
+    background: linear-gradient(45deg, #ff99cc, #ffccff);
+    border-radius: 50% 50% 0 50%;
+    animation: wingFlap 0.2s infinite alternate;
+}
+
+.butterfly::after {
+    right: 0;
+    transform: scaleX(-1);
+}
+
+.rainbow {
+    position: absolute;
+    width: 400px;
+    height: 200px;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 1s ease;
+}
+
+.rainbow-arc {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50% 50% 0 0;
+    border: none;
+}
+
+.rainbow-arc:nth-child(1) { background: linear-gradient(180deg, transparent 50%, rgba(255, 0, 0, 0.2) 50%); }
+.rainbow-arc:nth-child(2) { background: linear-gradient(180deg, transparent 55%, rgba(255, 165, 0, 0.2) 55%); }
+.rainbow-arc:nth-child(3) { background: linear-gradient(180deg, transparent 60%, rgba(255, 255, 0, 0.2) 60%); }
+.rainbow-arc:nth-child(4) { background: linear-gradient(180deg, transparent 65%, rgba(0, 255, 0, 0.2) 65%); }
+.rainbow-arc:nth-child(5) { background: linear-gradient(180deg, transparent 70%, rgba(0, 0, 255, 0.2) 70%); }
+.rainbow-arc:nth-child(6) { background: linear-gradient(180deg, transparent 75%, rgba(238, 130, 238, 0.2) 75%); }
+
+.hearts-container {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.heart {
+    position: absolute;
+    font-size: 20px;
+    color: #ff3366;
+    animation: floatUp 4s ease-in-out infinite;
+    opacity: 0;
+}
+
+.sparkles {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.sparkle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: #fff;
+    border-radius: 50%;
+    animation: twinkle 1s infinite;
+}
+
+.message-bubble {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px;
+    border-radius: 20px;
+    font-family: 'Dancing Script', cursive;
+    font-size: 1.2em;
+    color: #ff3366;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s ease;
+}
+
+@keyframes flyAround {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(200px, -100px) rotate(90deg); }
+    50% { transform: translate(400px, 0) rotate(180deg); }
+    75% { transform: translate(200px, 100px) rotate(270deg); }
+    100% { transform: translate(0, 0) rotate(360deg); }
+}
+
+@keyframes wingFlap {
+    from { transform: rotate(-30deg); }
+    to { transform: rotate(30deg); }
+}
+
+@keyframes floatUp {
+    0% { transform: translateY(100%) scale(0); opacity: 0; }
+    50% { opacity: 1; }
+    100% { transform: translateY(-100%) scale(1.5); opacity: 0; }
+}
+
+@keyframes twinkle {
+    0%, 100% { opacity: 0; transform: scale(0.5); }
+    50% { opacity: 1; transform: scale(1.2); }
+}
+
     </style>
 </head>
 <body>
     <div class="garden"></div>
     <div class="gift-box"></div>
     <div class="gift-message">Kowsar</div>
+    <div class="butterflies">
+    <!-- Butterflies will be added via JavaScript -->
+</div>
+<div class="rainbow">
+    <div class="rainbow-arc"></div>
+    <div class="rainbow-arc"></div>
+    <div class="rainbow-arc"></div>
+    <div class="rainbow-arc"></div>
+    <div class="rainbow-arc"></div>
+    <div class="rainbow-arc"></div>
+</div>
+<div class="hearts-container">
+    <!-- Hearts will be added via JavaScript -->
+</div>
+<div class="sparkles">
+    <!-- Sparkles will be added via JavaScript -->
+</div>
+<div class="message-bubble">
+    You make my heart smile! ✨
+</div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -283,6 +430,54 @@ body {
                     isOpen = false;
                 }
             });
+            function createButterflies(count) {
+    const container = document.querySelector('.butterflies');
+    for (let i = 0; i < count; i++) {
+        const butterfly = document.createElement('div');
+        butterfly.className = 'butterfly';
+        butterfly.style.left = Math.random() * 100 + '%';
+        butterfly.style.top = Math.random() * 100 + '%';
+        butterfly.style.animationDelay = Math.random() * 5 + 's';
+        container.appendChild(butterfly);
+    }
+}
+
+function createHearts() {
+    const container = document.querySelector('.hearts-container');
+    setInterval(() => {
+        const heart = document.createElement('div');
+        heart.className = 'heart';
+        heart.textContent = '❤';
+        heart.style.left = Math.random() * 100 + '%';
+        heart.style.animationDelay = Math.random() + 's';
+        container.appendChild(heart);
+        setTimeout(() => heart.remove(), 4000);
+    }, 300);
+}
+
+function createSparkles(count) {
+    const container = document.querySelector('.sparkles');
+    for (let i = 0; i < count; i++) {
+        const sparkle = document.createElement('div');
+        sparkle.className = 'sparkle';
+        sparkle.style.left = Math.random() * 100 + '%';
+        sparkle.style.top = Math.random() * 100 + '%';
+        sparkle.style.animationDelay = Math.random() * 2 + 's';
+        container.appendChild(sparkle);
+    }
+}
+
+// Initialize elements
+createButterflies(5);
+createHearts();
+createSparkles(20);
+
+// Show rainbow and message on gift box click
+document.querySelector('.gift-box').addEventListener('click', () => {
+    document.querySelector('.rainbow').style.opacity = '1';
+    document.querySelector('.message-bubble').style.opacity = '1';
+    document.querySelector('.message-bubble').style.transform = 'translateY(0)';
+});
 
             // Add hover effect to flowers
             document.querySelectorAll('.flower').forEach(flower => {
