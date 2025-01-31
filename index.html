@@ -184,99 +184,193 @@
     </div>
 
     <script>
-        // Configuration object for API (to be filled in later)
-        const config = {
-            apiKey: 'AIzaSyCHMj_UZZZ5q4L-U-Xjp_dwhLyZpY1rvKw',
-            apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent'
+       // Configuration object for Gemini API
+const config = {
+    apiKey: 'AIzaSyCHMj_UZZZ5q4L-U-Xjp_dwhLyZpY1rvKw',
+    apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent'
+};
+
+// Helper function to construct the prompt for Gemini
+function constructPrompt(context) {
+    return {
+        contents: [{
+            parts: [{
+                text: `As an Islamic recommendation system, provide a daily Quran recommendation.
+                Current context:
+                - Day: ${context.dayName}
+                - Date: ${context.date}
+
+                Please provide a recommendation in the following JSON format:
+                {
+                    "type": "Type of recommendation (e.g., Friday Special, Daily Wisdom)",
+                    "surah": "Name of recommended Surah",
+                    "arabicText": "Key verse in Arabic",
+                    "translation": "English translation of the verse",
+                    "benefits": ["benefit 1", "benefit 2", "benefit 3"]
+                }
+
+                If the day is Friday, specifically recommend Surah Al-Kahf.
+                Ensure response is in valid JSON format only.`
+            }]
+        }]
+    };
+}
+
+// Function to fetch recommendations from Gemini API
+async function fetchRecommendation() {
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const errorMessage = document.getElementById('errorMessage');
+    const mainContent = document.getElementById('mainContent');
+
+    try {
+        // Show loading state
+        loadingIndicator.style.display = 'block';
+        mainContent.style.display = 'none';
+        errorMessage.style.display = 'none';
+
+        // Prepare context
+        const today = new Date();
+        const context = {
+            date: today.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            }),
+            dayName: today.toLocaleDateString('en-US', { weekday: 'long' })
         };
 
-        // Function to fetch recommendations from Gemini API
-        async function fetchRecommendation() {
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            const errorMessage = document.getElementById('errorMessage');
-            const mainContent = document.getElementById('mainContent');
+        // Make API call to Gemini
+        const response = await fetch(`${config.apiEndpoint}?key=${config.apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(constructPrompt(context))
+        });
 
-            try {
-                loadingIndicator.style.display = 'block';
-                mainContent.style.display = 'none';
-                errorMessage.style.display = 'none';
+        if (!response.ok) {
+            throw new Error(`API request failed: ${response.statusText}`);
+        }
 
-                // Prepare the context for the API
-                const today = new Date();
-                const context = {
-                    date: today.toISOString(),
-                    day: today.getDay(),
-                    previousRecommendations: [], // Could be fetched from local storage
-                    userPreferences: {} // Could be fetched from user settings
-                };
+        const apiResponse = await response.json();
+        
+        // Extract and parse the recommendation from Gemini's response
+        const recommendationText = apiResponse.candidates[0].content.parts[0].text;
+        // Find the JSON object in the response text
+        const jsonMatch = recommendationText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            throw new Error('Invalid response format from API');
+        }
+        
+        const recommendation = JSON.parse(jsonMatch[0]);
+        await updateCardContent(recommendation);
 
-                // API call will go here
-                // const response = await fetch(config.apiEndpoint, {
-                //     method: 'POST',
-                //     headers: {
-                //         'Content-Type': 'application/json',
-                //         'Authorization': `Bearer ${config.apiKey}`
-                //     },
-                //     body: JSON.stringify(context)
-                // });
+    } catch (error) {
+        console.error('Error fetching recommendation:', error);
+        errorMessage.textContent = 'Unable to load recommendation. Please try again later.';
+        errorMessage.style.display = 'block';
+    } finally {
+        loadingIndicator.style.display = 'none';
+        mainContent.style.display = 'block';
+    }
+}
 
-                // const data = await response.json();
-                // updateCardContent(data);
+// Function to update card content with API response
+async function updateCardContent(data) {
+    // Update date
+    document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    
+    // Update content
+    document.getElementById('recommendationType').textContent = data.type;
+    document.getElementById('surahTitle').textContent = data.surah;
+    document.getElementById('arabicText').textContent = data.arabicText;
+    document.getElementById('translation').textContent = data.translation;
 
-                // Temporary: Remove this when implementing actual API
-                throw new Error('API not yet implemented');
+    // Update benefits
+    const benefitsList = document.getElementById('benefitsList');
+    benefitsList.innerHTML = '';
+    data.benefits.forEach(benefit => {
+        const li = document.createElement('li');
+        li.textContent = benefit;
+        benefitsList.appendChild(li);
+    });
 
-            } catch (error) {
-                errorMessage.textContent = 'Unable to load recommendation. Please try again later.';
-                errorMessage.style.display = 'block';
-                console.error('Error fetching recommendation:', error);
-            } finally {
-                loadingIndicator.style.display = 'none';
-                mainContent.style.display = 'block';
+    // Store recommendation in localStorage for offline access
+    try {
+        localStorage.setItem('lastRecommendation', JSON.stringify({
+            timestamp: new Date().toISOString(),
+            data: data
+        }));
+    } catch (error) {
+        console.error('Error saving to localStorage:', error);
+    }
+}
+
+// Function to load cached recommendation if API fails
+function loadCachedRecommendation() {
+    try {
+        const cached = localStorage.getItem('lastRecommendation');
+        if (cached) {
+            const { timestamp, data } = JSON.parse(cached);
+            const cacheAge = new Date() - new Date(timestamp);
+            // Use cache if it's less than 24 hours old
+            if (cacheAge < 24 * 60 * 60 * 1000) {
+                return data;
             }
         }
+    } catch (error) {
+        console.error('Error loading from cache:', error);
+    }
+    return null;
+}
 
-        // Function to update card content with API response
-        function updateCardContent(data) {
-            document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-            
-            document.getElementById('recommendationType').textContent = data.type;
-            document.getElementById('surahTitle').textContent = data.surah;
-            document.getElementById('arabicText').textContent = data.arabicText;
-            document.getElementById('translation').textContent = data.translation;
+// Action button handlers
+async function readMore() {
+    const surahTitle = document.getElementById('surahTitle').textContent;
+    // Save current state
+    try {
+        localStorage.setItem('lastReadSurah', surahTitle);
+    } catch (error) {
+        console.error('Error saving reading state:', error);
+    }
+    // Navigate to full surah page (implement according to your routing)
+    console.log(`Navigating to full surah: ${surahTitle}`);
+}
 
-            const benefitsList = document.getElementById('benefitsList');
-            benefitsList.innerHTML = '';
-            data.benefits.forEach(benefit => {
-                const li = document.createElement('li');
-                li.textContent = benefit;
-                benefitsList.appendChild(li);
-            });
-        }
+async function saveForLater() {
+    try {
+        const currentRecommendation = {
+            date: new Date().toISOString(),
+            surah: document.getElementById('surahTitle').textContent,
+            type: document.getElementById('recommendationType').textContent
+        };
 
-        // Action button handlers
-        async function readMore() {
-            // Implement navigation to full surah page
-            console.log('Navigating to full surah reading page...');
-        }
+        // Get existing saved items
+        const savedItems = JSON.parse(localStorage.getItem('savedRecommendations') || '[]');
+        // Add new item
+        savedItems.push(currentRecommendation);
+        // Save back to localStorage
+        localStorage.setItem('savedRecommendations', JSON.stringify(savedItems));
 
-        async function saveForLater() {
-            try {
-                // Implement save functionality
-                // Could store in localStorage or make an API call to user's saved items
-                console.log('Saving recommendation...');
-            } catch (error) {
-                console.error('Error saving recommendation:', error);
-            }
-        }
+        // Show success message (you can implement this UI element)
+        console.log('Recommendation saved successfully');
+    } catch (error) {
+        console.error('Error saving recommendation:', error);
+    }
+}
 
-        // Initialize the card when the page loads
-        document.addEventListener('DOMContentLoaded', fetchRecommendation);
+// Initialize the card when the page loads
+document.addEventListener('DOMContentLoaded', fetchRecommendation);
+
+// Add refresh functionality (optional)
+function refreshRecommendation() {
+    fetchRecommendation();
+}
     </script>
 </body>
 </html>
