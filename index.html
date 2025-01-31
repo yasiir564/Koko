@@ -1,376 +1,494 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <title>Organic Flower Garden for Kowsar</title>
     <style>
-        :root {
-            --primary-gradient: linear-gradient(135deg, #6366f1, #4f46e5);
-            --secondary-gradient: linear-gradient(135deg, #f5f3ff, #ede9fe);
-            --text-primary: #1e1b4b;
-            --text-secondary: #4c1d95;
-            --accent-color: #6d28d9;
-        }
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Dancing+Script:wght@700&display=swap');
 
-        .quran-card {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: var(--secondary-gradient);
-            border-radius: 16px;
-            box-shadow: 0 4px 24px rgba(99, 102, 241, 0.15);
-            padding: 24px;
-            max-width: 480px;
-            margin: 20px auto;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
+:root {
+    --primary-dark: #1e4d2b;
+    --primary-light: #3a7850;
+    --accent-pink: #ff3366;
+    --accent-gold: #ffd700;
+    --leaf-green: #4CAF50;
+}
 
-        .quran-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.25);
-        }
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary-light));
+    overflow: hidden;
+    cursor: pointer;
+    perspective: 1000px;
+}
 
-        .card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 16px;
-        }
+.garden {
+    position: relative;
+    width: 800px;
+    height: 600px;
+    transform-style: preserve-3d;
+}
 
-        .date-badge {
-            background: var(--primary-gradient);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-        }
+.stem {
+    position: absolute;
+    bottom: 0;
+    width: 8px;
+    background: linear-gradient(to bottom, var(--leaf-green), var(--primary-dark));
+    transform-origin: bottom center;
+    animation: sway 4s infinite ease-in-out;
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
 
-        .recommendation-type {
-            color: var(--accent-color);
-            font-weight: 600;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+.stem::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shimmer 3s infinite linear;
+}
 
-        .main-content {
-            margin: 24px 0;
-        }
+.leaf {
+    position: absolute;
+    width: 40px;
+    height: 20px;
+    background: linear-gradient(45deg, var(--leaf-green), var(--primary-light));
+    border-radius: 50% 50% 50% 0;
+    transform-origin: bottom left;
+    animation: leafSway 3s infinite ease-in-out;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: filter 0.3s ease;
+}
 
-        .surah-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 12px;
-        }
+.leaf:hover {
+    filter: brightness(1.2) saturate(1.2);
+    animation-play-state: paused;
+}
 
-        .arabic-text {
-            font-size: 28px;
-            text-align: right;
-            margin: 16px 0;
-            line-height: 1.6;
-            color: var(--text-primary);
-        }
+.flower {
+    position: absolute;
+    top: -40px;
+    left: -36px;
+    width: 80px;
+    height: 80px;
+    transition: transform 0.3s ease;
+}
 
-        .translation {
-            font-size: 16px;
-            color: var(--text-secondary);
-            line-height: 1.6;
-            margin-bottom: 16px;
-        }
+.flower:hover {
+    transform: scale(1.1) rotate(5deg);
+}
 
-        .benefits {
-            background: rgba(99, 102, 241, 0.1);
-            border-left: 4px solid #6366f1;
-            padding: 16px;
-            margin: 16px 0;
-            border-radius: 0 8px 8px 0;
-        }
+.petal {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background: linear-gradient(45deg, var(--accent-pink), #ff0033);
+    border-radius: 50% 50% 50% 0;
+    transform-origin: bottom right;
+    animation: petalSway 3s infinite ease-in-out;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
 
-        .benefits-title {
-            color: var(--accent-color);
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
+.petal:hover {
+    filter: brightness(1.3);
+    transform: scale(1.1) rotate(15deg);
+}
 
-        .benefits-list {
-            color: var(--text-primary);
-            margin: 0;
-            padding-left: 20px;
-        }
+.gift-box {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(45deg, var(--accent-pink), #ff0033);
+    border-radius: 10px;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%) rotate(0deg);
+    cursor: pointer;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    z-index: 100;
+}
 
-        .action-buttons {
-            display: flex;
-            gap: 12px;
-            margin-top: 24px;
-        }
+.gift-box:hover {
+    transform: translateX(-50%) rotate(5deg) scale(1.1);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+}
 
-        .btn {
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: none;
-            font-size: 14px;
-        }
+.gift-box::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 20px;
+    background: var(--accent-gold);
+    top: 40px;
+    transform: scale(1);
+    transition: transform 0.3s ease;
+}
 
-        .btn-primary {
-            background: var(--primary-gradient);
-            color: white;
-        }
+.gift-box::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 100%;
+    background: var(--accent-gold);
+    left: 40px;
+    transform: scale(1);
+    transition: transform 0.3s ease;
+}
 
-        .btn-secondary {
-            background: rgba(99, 102, 241, 0.1);
-            color: var(--accent-color);
-        }
+.gift-message {
+    position: absolute;
+    font-family: 'Dancing Script', cursive;
+    font-size: 2.5em;
+    color: white;
+    text-align: center;
+    width: 100%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: all 0.5s;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
 
-        .btn:hover {
-            transform: translateY(-2px);
-            opacity: 0.9;
-        }
+.gift-message.show {
+    opacity: 1;
+    animation: floatIn 0.8s ease-out;
+}
 
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-            color: var(--accent-color);
-        }
+@keyframes sway {
+    0%, 100% { 
+        transform: rotate(-5deg) translateZ(0);
+    }
+    50% { 
+        transform: rotate(5deg) translateZ(0);
+    }
+}
 
-        .error-message {
-            display: none;
-            color: #dc2626;
-            background: #fee2e2;
-            padding: 12px;
-            border-radius: 8px;
-            margin: 16px 0;
-        }
+@keyframes leafSway {
+    0%, 100% { 
+        transform: rotate(-15deg) translateY(0);
+    }
+    50% { 
+        transform: rotate(5deg) translateY(-5px);
+    }
+}
 
-        @media (max-width: 480px) {
-            .quran-card {
-                margin: 20px 16px;
-                padding: 16px;
-            }
+@keyframes petalSway {
+    0%, 100% { 
+        transform: rotate(-10deg) scale(0.95) translateZ(0);
+    }
+    50% { 
+        transform: rotate(10deg) scale(1.05) translateZ(0);
+    }
+}
 
-            .action-buttons {
-                flex-direction: column;
-            }
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
 
-            .arabic-text {
-                font-size: 24px;
-            }
-        }
+@keyframes floatIn {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -30%);
+    }
+    100% {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stem, .leaf, .petal {
+        animation: none;
+    }
+}
+        /* Previous CSS remains the same, adding new elements: */
+
+.butterflies {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.butterfly {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    animation: flyAround 15s infinite linear;
+}
+
+.butterfly::before,
+.butterfly::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 15px;
+    background: linear-gradient(45deg, #ff99cc, #ffccff);
+    border-radius: 50% 50% 0 50%;
+    animation: wingFlap 0.2s infinite alternate;
+}
+
+.butterfly::after {
+    right: 0;
+    transform: scaleX(-1);
+}
+
+.rainbow {
+    position: absolute;
+    width: 400px;
+    height: 200px;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 1s ease;
+}
+
+.rainbow-arc {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50% 50% 0 0;
+    border: none;
+}
+
+.rainbow-arc:nth-child(1) { background: linear-gradient(180deg, transparent 50%, rgba(255, 0, 0, 0.2) 50%); }
+.rainbow-arc:nth-child(2) { background: linear-gradient(180deg, transparent 55%, rgba(255, 165, 0, 0.2) 55%); }
+.rainbow-arc:nth-child(3) { background: linear-gradient(180deg, transparent 60%, rgba(255, 255, 0, 0.2) 60%); }
+.rainbow-arc:nth-child(4) { background: linear-gradient(180deg, transparent 65%, rgba(0, 255, 0, 0.2) 65%); }
+.rainbow-arc:nth-child(5) { background: linear-gradient(180deg, transparent 70%, rgba(0, 0, 255, 0.2) 70%); }
+.rainbow-arc:nth-child(6) { background: linear-gradient(180deg, transparent 75%, rgba(238, 130, 238, 0.2) 75%); }
+
+.hearts-container {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.heart {
+    position: absolute;
+    font-size: 20px;
+    color: #ff3366;
+    animation: floatUp 4s ease-in-out infinite;
+    opacity: 0;
+}
+
+.sparkles {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.sparkle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: #fff;
+    border-radius: 50%;
+    animation: twinkle 1s infinite;
+}
+
+.message-bubble {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px;
+    border-radius: 20px;
+    font-family: 'Dancing Script', cursive;
+    font-size: 1.2em;
+    color: #ff3366;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s ease;
+}
+
+@keyframes flyAround {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(200px, -100px) rotate(90deg); }
+    50% { transform: translate(400px, 0) rotate(180deg); }
+    75% { transform: translate(200px, 100px) rotate(270deg); }
+    100% { transform: translate(0, 0) rotate(360deg); }
+}
+
+@keyframes wingFlap {
+    from { transform: rotate(-30deg); }
+    to { transform: rotate(30deg); }
+}
+
+@keyframes floatUp {
+    0% { transform: translateY(100%) scale(0); opacity: 0; }
+    50% { opacity: 1; }
+    100% { transform: translateY(-100%) scale(1.5); opacity: 0; }
+}
+
+@keyframes twinkle {
+    0%, 100% { opacity: 0; transform: scale(0.5); }
+    50% { opacity: 1; transform: scale(1.2); }
+}
+
     </style>
 </head>
 <body>
-    <div class="quran-card" id="dailyCard">
-        <div class="card-header">
-            <span class="date-badge" id="currentDate"></span>
-            <span class="recommendation-type" id="recommendationType"></span>
-        </div>
-        <div class="loading" id="loadingIndicator">
-            Loading recommendation...
-        </div>
-        <div class="error-message" id="errorMessage"></div>
-        <div class="main-content" id="mainContent">
-            <h2 class="surah-title" id="surahTitle"></h2>
-            <div class="arabic-text" id="arabicText"></div>
-            <div class="translation" id="translation"></div>
-            <div class="benefits">
-                <div class="benefits-title">Benefits & Virtues</div>
-                <ul class="benefits-list" id="benefitsList"></ul>
-            </div>
-        </div>
-        <div class="action-buttons">
-            <button class="btn btn-primary" onclick="readMore()">Read Full Surah</button>
-            <button class="btn btn-secondary" onclick="saveForLater()">Save for Later</button>
-        </div>
-    </div>
+    <div class="garden"></div>
+    <div class="gift-box"></div>
+    <div class="gift-message">Kowsar</div>
+    <div class="butterflies">
+    <!-- Butterflies will be added via JavaScript -->
+</div>
+<div class="rainbow">
+    <div class="rainbow-arc"></div>
+    <div class="rainbow-arc"></div>
+    <div class="rainbow-arc"></div>
+    <div class="rainbow-arc"></div>
+    <div class="rainbow-arc"></div>
+    <div class="rainbow-arc"></div>
+</div>
+<div class="hearts-container">
+    <!-- Hearts will be added via JavaScript -->
+</div>
+<div class="sparkles">
+    <!-- Sparkles will be added via JavaScript -->
+</div>
+<div class="message-bubble">
+    You make my heart smile! ✨
+</div>
 
     <script>
-       // Configuration object for Gemini API
-const config = {
-    apiKey: 'AIzaSyCHMj_UZZZ5q4L-U-Xjp_dwhLyZpY1rvKw',
-    apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent'
-};
-
-// Helper function to construct the prompt for Gemini
-function constructPrompt(context) {
-    return {
-        contents: [{
-            parts: [{
-                text: `As an Islamic recommendation system, provide a daily Quran recommendation.
-                Current context:
-                - Day: ${context.dayName}
-                - Date: ${context.date}
-
-                Please provide a recommendation in the following JSON format:
-                {
-                    "type": "Type of recommendation (e.g., Friday Special, Daily Wisdom)",
-                    "surah": "Name of recommended Surah",
-                    "arabicText": "Key verse in Arabic",
-                    "translation": "English translation of the verse",
-                    "benefits": ["benefit 1", "benefit 2", "benefit 3"]
+        document.addEventListener('DOMContentLoaded', () => {
+            const garden = document.querySelector('.garden');
+            const stemCount = 5;
+            
+            // Create multiple stems with flowers and leaves
+            for (let i = 0; i < stemCount; i++) {
+                const stem = document.createElement('div');
+                stem.className = 'stem';
+                stem.style.left = `${150 + i * 120}px`;
+                stem.style.height = `${300 + Math.random() * 100}px`;
+                stem.style.animationDelay = `${i * 0.2}s`;
+                
+                // Add leaves
+                for (let j = 0; j < 3; j++) {
+                    const leaf = document.createElement('div');
+                    leaf.className = 'leaf';
+                    leaf.style.bottom = `${50 + j * 80}px`;
+                    leaf.style.animationDelay = `${i * 0.2 + j * 0.1}s`;
+                    
+                    // Alternate leaf sides
+                    if (j % 2 === 0) {
+                        leaf.style.left = '0';
+                        leaf.style.transform = 'rotate(-45deg)';
+                    } else {
+                        leaf.style.right = '0';
+                        leaf.style.transform = 'rotate(135deg)';
+                    }
+                    
+                    stem.appendChild(leaf);
                 }
 
-                If the day is Friday, specifically recommend Surah Al-Kahf.
-                Ensure response is in valid JSON format only.`
-            }]
-        }]
-    };
-}
-
-// Function to fetch recommendations from Gemini API
-async function fetchRecommendation() {
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    const errorMessage = document.getElementById('errorMessage');
-    const mainContent = document.getElementById('mainContent');
-
-    try {
-        // Show loading state
-        loadingIndicator.style.display = 'block';
-        mainContent.style.display = 'none';
-        errorMessage.style.display = 'none';
-
-        // Prepare context
-        const today = new Date();
-        const context = {
-            date: today.toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            }),
-            dayName: today.toLocaleDateString('en-US', { weekday: 'long' })
-        };
-
-        // Make API call to Gemini
-        const response = await fetch(`${config.apiEndpoint}?key=${config.apiKey}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(constructPrompt(context))
-        });
-
-        if (!response.ok) {
-            throw new Error(`API request failed: ${response.statusText}`);
-        }
-
-        const apiResponse = await response.json();
-        
-        // Extract and parse the recommendation from Gemini's response
-        const recommendationText = apiResponse.candidates[0].content.parts[0].text;
-        // Find the JSON object in the response text
-        const jsonMatch = recommendationText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            throw new Error('Invalid response format from API');
-        }
-        
-        const recommendation = JSON.parse(jsonMatch[0]);
-        await updateCardContent(recommendation);
-
-    } catch (error) {
-        console.error('Error fetching recommendation:', error);
-        errorMessage.textContent = 'Unable to load recommendation. Please try again later.';
-        errorMessage.style.display = 'block';
-    } finally {
-        loadingIndicator.style.display = 'none';
-        mainContent.style.display = 'block';
-    }
-}
-
-// Function to update card content with API response
-async function updateCardContent(data) {
-    // Update date
-    document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-    
-    // Update content
-    document.getElementById('recommendationType').textContent = data.type;
-    document.getElementById('surahTitle').textContent = data.surah;
-    document.getElementById('arabicText').textContent = data.arabicText;
-    document.getElementById('translation').textContent = data.translation;
-
-    // Update benefits
-    const benefitsList = document.getElementById('benefitsList');
-    benefitsList.innerHTML = '';
-    data.benefits.forEach(benefit => {
-        const li = document.createElement('li');
-        li.textContent = benefit;
-        benefitsList.appendChild(li);
-    });
-
-    // Store recommendation in localStorage for offline access
-    try {
-        localStorage.setItem('lastRecommendation', JSON.stringify({
-            timestamp: new Date().toISOString(),
-            data: data
-        }));
-    } catch (error) {
-        console.error('Error saving to localStorage:', error);
-    }
-}
-
-// Function to load cached recommendation if API fails
-function loadCachedRecommendation() {
-    try {
-        const cached = localStorage.getItem('lastRecommendation');
-        if (cached) {
-            const { timestamp, data } = JSON.parse(cached);
-            const cacheAge = new Date() - new Date(timestamp);
-            // Use cache if it's less than 24 hours old
-            if (cacheAge < 24 * 60 * 60 * 1000) {
-                return data;
+                // Add flower
+                const flower = document.createElement('div');
+                flower.className = 'flower';
+                
+                // Create petals
+                for (let k = 0; k < 8; k++) {
+                    const petal = document.createElement('div');
+                    petal.className = 'petal';
+                    petal.style.transform = `rotate(${k * 45}deg)`;
+                    petal.style.animationDelay = `${i * 0.2 + k * 0.1}s`;
+                    flower.appendChild(petal);
+                }
+                
+                stem.appendChild(flower);
+                garden.appendChild(stem);
             }
-        }
-    } catch (error) {
-        console.error('Error loading from cache:', error);
-    }
-    return null;
-}
 
-// Action button handlers
-async function readMore() {
-    const surahTitle = document.getElementById('surahTitle').textContent;
-    // Save current state
-    try {
-        localStorage.setItem('lastReadSurah', surahTitle);
-    } catch (error) {
-        console.error('Error saving reading state:', error);
-    }
-    // Navigate to full surah page (implement according to your routing)
-    console.log(`Navigating to full surah: ${surahTitle}`);
-}
+            // Gift box interaction
+            const giftBox = document.querySelector('.gift-box');
+            const giftMessage = document.querySelector('.gift-message');
+            let isOpen = false;
 
-async function saveForLater() {
-    try {
-        const currentRecommendation = {
-            date: new Date().toISOString(),
-            surah: document.getElementById('surahTitle').textContent,
-            type: document.getElementById('recommendationType').textContent
-        };
-
-        // Get existing saved items
-        const savedItems = JSON.parse(localStorage.getItem('savedRecommendations') || '[]');
-        // Add new item
-        savedItems.push(currentRecommendation);
-        // Save back to localStorage
-        localStorage.setItem('savedRecommendations', JSON.stringify(savedItems));
-
-        // Show success message (you can implement this UI element)
-        console.log('Recommendation saved successfully');
-    } catch (error) {
-        console.error('Error saving recommendation:', error);
+            giftBox.addEventListener('click', () => {
+                if (!isOpen) {
+                    giftBox.style.transform = 'translateX(-50%) scale(1.5)';
+                    giftBox.style.background = 'linear-gradient(45deg, #ff6b99, #ff3366)';
+                    giftMessage.style.opacity = '1';
+                    isOpen = true;
+                } else {
+                    giftBox.style.transform = 'translateX(-50%) scale(1)';
+                    giftBox.style.background = 'linear-gradient(45deg, #ff3366, #ff0033)';
+                    giftMessage.style.opacity = '0';
+                    isOpen = false;
+                }
+            });
+            function createButterflies(count) {
+    const container = document.querySelector('.butterflies');
+    for (let i = 0; i < count; i++) {
+        const butterfly = document.createElement('div');
+        butterfly.className = 'butterfly';
+        butterfly.style.left = Math.random() * 100 + '%';
+        butterfly.style.top = Math.random() * 100 + '%';
+        butterfly.style.animationDelay = Math.random() * 5 + 's';
+        container.appendChild(butterfly);
     }
 }
 
-// Initialize the card when the page loads
-document.addEventListener('DOMContentLoaded', fetchRecommendation);
-
-// Add refresh functionality (optional)
-function refreshRecommendation() {
-    fetchRecommendation();
+function createHearts() {
+    const container = document.querySelector('.hearts-container');
+    setInterval(() => {
+        const heart = document.createElement('div');
+        heart.className = 'heart';
+        heart.textContent = '❤';
+        heart.style.left = Math.random() * 100 + '%';
+        heart.style.animationDelay = Math.random() + 's';
+        container.appendChild(heart);
+        setTimeout(() => heart.remove(), 4000);
+    }, 300);
 }
+
+function createSparkles(count) {
+    const container = document.querySelector('.sparkles');
+    for (let i = 0; i < count; i++) {
+        const sparkle = document.createElement('div');
+        sparkle.className = 'sparkle';
+        sparkle.style.left = Math.random() * 100 + '%';
+        sparkle.style.top = Math.random() * 100 + '%';
+        sparkle.style.animationDelay = Math.random() * 2 + 's';
+        container.appendChild(sparkle);
+    }
+}
+
+// Initialize elements
+createButterflies(5);
+createHearts();
+createSparkles(20);
+
+// Show rainbow and message on gift box click
+document.querySelector('.gift-box').addEventListener('click', () => {
+    document.querySelector('.rainbow').style.opacity = '1';
+    document.querySelector('.message-bubble').style.opacity = '1';
+    document.querySelector('.message-bubble').style.transform = 'translateY(0)';
+});
+
+            // Add hover effect to flowers
+            document.querySelectorAll('.flower').forEach(flower => {
+                flower.addEventListener('mouseover', () => {
+                    flower.style.transform = 'scale(1.2)';
+                });
+                flower.addEventListener('mouseout', () => {
+                    flower.style.transform = 'scale(1)';
+                });
+            });
+        });
     </script>
 </body>
 </html>
