@@ -102,7 +102,7 @@ def start_cleanup_thread():
 
 # Global CORS headers
 CORS_HEADERS = {
-    'Access-Control-Allow-Origin': '*',  # Change to specific domain in production
+    'Access-Control-Allow-Origin': 'https://tokhaste.com',  # Change to specific domain in production
     'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '3600'  # Cache preflight response for 1 hour
