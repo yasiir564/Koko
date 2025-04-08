@@ -3,12 +3,11 @@ import os
 import uuid
 import re
 import subprocess
-import mimetypes
 import time
 import threading
 import logging
-from werkzeug.utils import secure_filename
 from functools import lru_cache
+import hashlib
 
 app = Flask(__name__)
 
@@ -28,17 +27,14 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # In-memory cache for recent conversions
-# Structure: {unique_id: {"output_path": path, "last_accessed": timestamp}}
+# Structure: {file_hash: {"output_path": path, "last_accessed": timestamp}}
 file_cache = {}
 cache_lock = threading.Lock()
 
 def sanitize_filename(name):
     """Remove any path info and sanitize the file name"""
-    # Get the base name
     name = os.path.basename(name)
-    # Replace spaces with underscores
     name = name.replace(' ', '_')
-    # Remove special characters
     name = re.sub(r'[^A-Za-z0-9_\-\.]', '', name)
     return name
 
@@ -48,6 +44,18 @@ def generate_unique_filename(original_name):
     unique_id = uuid.uuid4().hex[:10]
     return f"{sanitize_filename(filename)}_{unique_id}{extension}"
 
+def generate_file_hash(file_obj):
+    """Generate SHA-256 hash of file contents for caching"""
+    file_hash = hashlib.sha256()
+    chunk_size = 8192  # Read in 8kb chunks
+    file_obj.seek(0)
+    
+    for chunk in iter(lambda: file_obj.read(chunk_size), b''):
+        file_hash.update(chunk)
+    
+    file_obj.seek(0)  # Reset file pointer
+    return file_hash.hexdigest()
+
 @lru_cache(maxsize=10)
 def get_ffmpeg_version():
     """Cache the FFmpeg version to avoid repeated subprocess calls"""
@@ -56,7 +64,8 @@ def get_ffmpeg_version():
             ["ffmpeg", "-version"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            check=True
         )
         return process.stdout.split('\n')[0]
     except Exception as e:
@@ -70,7 +79,6 @@ def cleanup_expired_files():
         for key, data in file_cache.items():
             if current_time - data["last_accessed"] > CACHE_EXPIRY:
                 try:
-                    # Remove the file if it exists
                     if os.path.exists(data["output_path"]):
                         os.remove(data["output_path"])
                         logger.info(f"Removed expired file: {data['output_path']}")
@@ -82,7 +90,6 @@ def cleanup_expired_files():
         for key in expired_keys:
             del file_cache[key]
 
-# Start a cleanup thread
 def start_cleanup_thread():
     """Start a background thread to periodically clean up expired files"""
     def cleanup_task():
@@ -93,26 +100,30 @@ def start_cleanup_thread():
     cleanup_thread = threading.Thread(target=cleanup_task, daemon=True)
     cleanup_thread.start()
 
+# Global CORS headers
+CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',  # Change to specific domain in production
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '3600'  # Cache preflight response for 1 hour
+}
+
 @app.route('/convert', methods=['POST', 'OPTIONS'])
 def convert_video():
     # Handle preflight OPTIONS request
     if request.method == 'OPTIONS':
-        return '', 200
-    
-    response = {}
+        return '', 204, CORS_HEADERS  # Return 204 No Content for OPTIONS
     
     # Check if file is uploaded
     if 'video' not in request.files:
-        response['success'] = False
-        response['error'] = "No file uploaded"
+        response = {'success': False, 'error': "No file uploaded"}
         return jsonify(response), 400
     
     video_file = request.files['video']
     
     # Check if filename is empty
     if video_file.filename == '':
-        response['success'] = False
-        response['error'] = "No file selected"
+        response = {'success': False, 'error': "No file selected"}
         return jsonify(response), 400
     
     # Validate file size (Flask doesn't have built-in size checking before reading)
@@ -121,11 +132,28 @@ def convert_video():
     video_file.seek(0)  # Reset file pointer
     
     if file_size > MAX_FILE_SIZE:
-        response['success'] = False
-        response['error'] = f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB"
+        response = {'success': False, 'error': f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB"}
         return jsonify(response), 400
     
     try:
+        # Generate file hash for caching
+        file_hash = generate_file_hash(video_file)
+        
+        # Check if we already have this file converted
+        with cache_lock:
+            if file_hash in file_cache and os.path.exists(file_cache[file_hash]["output_path"]):
+                output_path = file_cache[file_hash]["output_path"]
+                file_cache[file_hash]["last_accessed"] = time.time()
+                output_filename = os.path.basename(output_path)
+                
+                logger.info(f"Using cached file: {output_path}")
+                
+                return jsonify({
+                    'success': True,
+                    'filename': output_filename,
+                    'cached': True
+                })
+        
         # Generate unique filenames
         unique_video_name = generate_unique_filename(video_file.filename)
         video_path = os.path.join(UPLOAD_DIR, unique_video_name)
@@ -137,17 +165,16 @@ def convert_video():
         # Save the uploaded file
         video_file.save(video_path)
         
-        # Check if we have a cached version based on file content hash (not implemented for brevity)
-        # For a complete implementation, you could hash the file and check if it exists in cache
-        
-        # Convert the video to MP3 using FFmpeg
+        # Convert the video to MP3 using FFmpeg with optimized settings
         ffmpeg_command = [
             "ffmpeg", 
             "-i", video_path, 
-            "-vn", 
-            "-ar", "44100", 
-            "-ac", "2", 
-            "-b:a", "192k", 
+            "-vn",  # No video
+            "-ar", "44100",  # Audio sample rate
+            "-ac", "2",  # Stereo
+            "-b:a", "192k",  # Bitrate
+            "-threads", "0",  # Use all available threads
+            "-preset", "fast",  # Use faster preset
             output_path
         ]
         
@@ -166,10 +193,9 @@ def convert_video():
         if not os.path.exists(output_path):
             raise Exception("Output file was not created")
         
-        # Add to cache
-        file_id = os.path.splitext(output_filename)[0]
+        # Add to cache using file hash
         with cache_lock:
-            file_cache[file_id] = {
+            file_cache[file_hash] = {
                 "output_path": output_path,
                 "last_accessed": time.time()
             }
@@ -180,8 +206,11 @@ def convert_video():
         os.remove(video_path)
         
         # Return success response
-        response['success'] = True
-        response['filename'] = output_filename
+        response = {
+            'success': True,
+            'filename': output_filename,
+            'cached': False
+        }
         
         return jsonify(response)
         
@@ -190,45 +219,50 @@ def convert_video():
         if 'video_path' in locals() and os.path.exists(video_path):
             os.remove(video_path)
         
-        response['success'] = False
-        response['error'] = str(e)
+        response = {'success': False, 'error': str(e)}
         return jsonify(response), 500
 
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
     """Serve the converted files directly"""
     file_path = os.path.join(OUTPUT_DIR, filename)
-    file_id = os.path.splitext(filename)[0]
     
     # Update last accessed time in cache
     with cache_lock:
-        if file_id in file_cache:
-            file_cache[file_id]["last_accessed"] = time.time()
+        for file_hash, data in file_cache.items():
+            if os.path.basename(data["output_path"]) == filename:
+                file_cache[file_hash]["last_accessed"] = time.time()
+                break
     
     if os.path.exists(file_path):
-        return send_file(
+        response = send_file(
             file_path, 
             as_attachment=True,
             download_name=filename,
             mimetype='audio/mpeg'
         )
+        # Add CORS headers to download response
+        for key, value in CORS_HEADERS.items():
+            response.headers[key] = value
+        return response
     else:
         return f"File not found: {filename}", 404
 
 # Add CORS headers to all responses
 @app.after_request
 def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = 'https://tokhaste.com'  # Change to your specific domain in production
-    response.headers['Access-Control-Allow-Methods'] = 'POST, GET, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    # Only add headers if they're not already there
+    for key, value in CORS_HEADERS.items():
+        if key not in response.headers:
+            response.headers[key] = value
     return response
 
-# Route to display all available MP3 files (only shows cached files)
 @app.route('/files', methods=['GET'])
 def list_files():
+    """List all available MP3 files (only shows cached files)"""
     files = []
     with cache_lock:
-        for file_id, data in file_cache.items():
+        for data in file_cache.values():
             filename = os.path.basename(data["output_path"])
             if os.path.exists(data["output_path"]) and filename.endswith('.mp3'):
                 files.append(filename)
@@ -263,4 +297,5 @@ if __name__ == '__main__':
     logger.info("Started cache cleanup thread")
     logger.info(f"Cache expiry set to {CACHE_EXPIRY} seconds")
     
-    app.run(debug=True)
+    # Run with optimized settings
+    app.run(host='0.0.0.0', threaded=True)
