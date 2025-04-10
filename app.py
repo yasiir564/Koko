@@ -8,6 +8,7 @@ import threading
 import logging
 from functools import lru_cache
 import hashlib
+import requests
 
 app = Flask(__name__)
 
@@ -19,6 +20,12 @@ TEMP_DIR = os.path.join(CURRENT_DIR, "temp/")  # For temporary compressed videos
 MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB max file size
 CACHE_EXPIRY = 3600  # Files expire after 1 hour (in seconds)
 VIDEO_DURATION_THRESHOLD = 240  # 4 minutes in seconds
+
+# Cloudflare Turnstile Configuration
+# Site key from JS: 0x4AAAAAABHoxdccCZ_9Cezk
+# You need to use the secret key paired with this site key
+TURNSTILE_SECRET_KEY = "0x4AAAAAABIW_kgftT3_gX1pCGubqUHN9wv"  # This is a placeholder - replace with your actual secret key
+TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -33,6 +40,35 @@ os.makedirs(TEMP_DIR, exist_ok=True)
 # Structure: {file_hash: {"output_path": path, "last_accessed": timestamp}}
 file_cache = {}
 cache_lock = threading.Lock()
+
+def verify_turnstile_token(token, remote_ip=None):
+    """Verify a Cloudflare Turnstile token with the Cloudflare API"""
+    try:
+        data = {
+            'secret': TURNSTILE_SECRET_KEY,
+            'response': token
+        }
+        
+        # Add the user's IP if provided (optional but recommended by Cloudflare)
+        if remote_ip:
+            data['remoteip'] = remote_ip
+            
+        logger.info(f"Verifying Turnstile token for IP: {remote_ip if remote_ip else 'Not provided'}")
+        
+        response = requests.post(TURNSTILE_VERIFY_URL, data=data)
+        result = response.json()
+        
+        # Log verification attempt
+        if result.get('success'):
+            logger.info("Turnstile verification successful")
+        else:
+            error_codes = result.get('error-codes', [])
+            logger.warning(f"Turnstile verification failed: {error_codes}")
+            
+        return result.get('success', False)
+    except Exception as e:
+        logger.error(f"Error verifying Turnstile token: {str(e)}")
+        return False
 
 def sanitize_filename(name):
     """Remove any path info and sanitize the file name"""
@@ -179,6 +215,21 @@ def convert_video():
     if request.method == 'OPTIONS':
         return '', 204, CORS_HEADERS  # Return 204 No Content for OPTIONS
     
+    # Verify Cloudflare Turnstile token
+    token = request.form.get('cf-turnstile-response')
+    remote_ip = request.remote_addr
+    
+    if not token:
+        logger.warning("Turnstile token missing in request")
+        response = {'success': False, 'error': "Security verification required"}
+        return jsonify(response), 400
+    
+    # Verify the token with Cloudflare
+    if not verify_turnstile_token(token, remote_ip):
+        logger.warning(f"Invalid Turnstile token from IP: {remote_ip}")
+        response = {'success': False, 'error': "Security verification failed"}
+        return jsonify(response), 403
+    
     # Check if file is uploaded
     if 'video' not in request.files:
         response = {'success': False, 'error': "No file uploaded"}
@@ -250,19 +301,35 @@ def convert_video():
             else:
                 logger.warning("Compression failed, using original video")
         
-        # Modify FFmpeg command to be more memory-efficient
+        # Get format and bitrate (if provided)
+        format_type = request.form.get('format', 'mp3')
+        bitrate = request.form.get('bitrate', '192k')
+        
+        # Validate format and bitrate
+        if format_type not in ['mp3', 'aac', 'wav', 'ogg']:
+            format_type = 'mp3'  # Default to mp3 if invalid
+        
+        if bitrate not in ['128k', '192k', '256k', '320k']:
+            bitrate = '192k'  # Default to 192k if invalid
+        
+        # Adjust output filename based on format
+        if format_type != 'mp3':
+            output_filename = os.path.splitext(unique_video_name)[0] + f'.{format_type}'
+            output_path = os.path.join(OUTPUT_DIR, output_filename)
+        
+        # Modify FFmpeg command to be more memory-efficient and use selected format/bitrate
         ffmpeg_command = [
             "ffmpeg", 
             "-i", source_video_path, 
             "-vn",  # No video
             "-ar", "44100",  # Audio sample rate
             "-ac", "2",  # Stereo
-            "-b:a", "192k",  # Bitrate
+            "-b:a", bitrate,  # Use selected bitrate
             "-threads", "0",  # Use all available threads
             "-bufsize", "3M",  # Smaller buffer size
             "-maxrate", "384k",  # Maximum bitrate
             "-preset", "ultrafast",  # Use fastest preset
-            "-f", "mp3",  # Force mp3 format
+            "-f", format_type,  # Use selected format
             output_path
         ]
         
@@ -301,6 +368,8 @@ def convert_video():
             'filename': output_filename,
             'compressed': compressed,
             'duration': duration,
+            'format': format_type,
+            'bitrate': bitrate,
             'cached': False
         }
         
@@ -363,7 +432,7 @@ def list_files():
     with cache_lock:
         for data in file_cache.values():
             filename = os.path.basename(data["output_path"])
-            if os.path.exists(data["output_path"]) and filename.endswith('.mp3'):
+            if os.path.exists(data["output_path"]):
                 files.append(filename)
     return jsonify({"files": files})
 
@@ -380,7 +449,9 @@ def status():
         "cached_files_count": cache_count,
         "cache_expiry_seconds": CACHE_EXPIRY,
         "video_duration_threshold": VIDEO_DURATION_THRESHOLD,
-        "max_file_size_mb": MAX_FILE_SIZE // (1024 * 1024)
+        "max_file_size_mb": MAX_FILE_SIZE // (1024 * 1024),
+        "turnstile_enabled": True,
+        "turnstile_site_key": "0x4AAAAAABHoxdccCZ_9Cezk"  # Add site key for frontend reference
     })
 
 @app.route('/clear-cache', methods=['POST'])
@@ -398,6 +469,7 @@ if __name__ == '__main__':
     logger.info("Started cache cleanup thread")
     logger.info(f"Cache expiry set to {CACHE_EXPIRY} seconds")
     logger.info(f"Videos longer than {VIDEO_DURATION_THRESHOLD} seconds will be compressed")
+    logger.info("Cloudflare Turnstile protection enabled")
     
     # Run with optimized settings
     app.run(host='0.0.0.0', threaded=True)
