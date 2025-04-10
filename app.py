@@ -19,7 +19,6 @@ OUTPUT_DIR = os.path.join(CURRENT_DIR, "converted/")
 TEMP_DIR = os.path.join(CURRENT_DIR, "temp/")  # For temporary compressed videos
 MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB max file size
 CACHE_EXPIRY = 3600  # Files expire after 1 hour (in seconds)
-VIDEO_DURATION_THRESHOLD = 240  # 4 minutes in seconds
 
 # Cloudflare Turnstile Configuration
 # Site key from JS: 0x4AAAAAABHoxdccCZ_9Cezk
@@ -111,39 +110,6 @@ def get_video_duration(video_path):
     except Exception as e:
         logger.error(f"Error getting video duration: {str(e)}")
         return 0  # Return 0 if duration cannot be determined
-
-def compress_video(input_path, output_path):
-    """Compress video to reduce size while maintaining reasonable quality"""
-    try:
-        # Use more efficient compression settings for large videos
-        cmd = [
-            "ffmpeg",
-            "-i", input_path,
-            "-c:v", "libx264",
-            "-crf", "30",  # Higher CRF means more compression (lower quality)
-            "-preset", "ultrafast",  # Fastest encoding
-            "-c:a", "aac",
-            "-b:a", "128k",
-            "-vf", "scale=-2:720",  # Resize to 720p
-            "-threads", "0",
-            "-y",  # Overwrite output file if it exists
-            output_path
-        ]
-        
-        result = subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        
-        if result.returncode != 0:
-            raise Exception(f"Video compression failed: {result.stderr}")
-        
-        return True
-    except Exception as e:
-        logger.error(f"Compression error: {str(e)}")
-        return False
 
 @lru_cache(maxsize=10)
 def get_ffmpeg_version():
@@ -281,25 +247,12 @@ def convert_video():
         # Save the uploaded file
         video_file.save(video_path)
         
-        # Check video duration
+        # Check video duration (keeping for informational purposes)
         duration = get_video_duration(video_path)
         logger.info(f"Video duration: {duration} seconds")
         
-        # Source video to use for conversion
+        # Source video to use for conversion - always use the original video
         source_video_path = video_path
-        compressed = False
-        
-        # Compress the video if it's longer than the threshold
-        if duration > VIDEO_DURATION_THRESHOLD:
-            compressed_path = os.path.join(TEMP_DIR, f"compressed_{unique_video_name}")
-            logger.info(f"Compressing video (duration: {duration}s) before conversion")
-            
-            if compress_video(video_path, compressed_path):
-                source_video_path = compressed_path
-                compressed = True
-                logger.info(f"Video successfully compressed: {compressed_path}")
-            else:
-                logger.warning("Compression failed, using original video")
         
         # Get format and bitrate (if provided)
         format_type = request.form.get('format', 'mp3')
@@ -317,7 +270,7 @@ def convert_video():
             output_filename = os.path.splitext(unique_video_name)[0] + f'.{format_type}'
             output_path = os.path.join(OUTPUT_DIR, output_filename)
         
-        # Modify FFmpeg command to be more memory-efficient and use selected format/bitrate
+        # FFmpeg command to extract audio
         ffmpeg_command = [
             "ffmpeg", 
             "-i", source_video_path, 
@@ -359,14 +312,11 @@ def convert_video():
         
         # Clean up temporary files
         os.remove(video_path)
-        if compressed and os.path.exists(source_video_path) and source_video_path != video_path:
-            os.remove(source_video_path)
         
         # Return success response
         response = {
             'success': True,
             'filename': output_filename,
-            'compressed': compressed,
             'duration': duration,
             'format': format_type,
             'bitrate': bitrate,
@@ -382,10 +332,6 @@ def convert_video():
         # Delete the uploaded file if there was an error
         if 'video_path' in locals() and os.path.exists(video_path):
             os.remove(video_path)
-        
-        # Clean up compressed file if it exists
-        if 'compressed' in locals() and compressed and 'source_video_path' in locals() and os.path.exists(source_video_path):
-            os.remove(source_video_path)
         
         response = {'success': False, 'error': str(e)}
         return jsonify(response), 500
@@ -448,7 +394,6 @@ def status():
         "ffmpeg_version": get_ffmpeg_version(),
         "cached_files_count": cache_count,
         "cache_expiry_seconds": CACHE_EXPIRY,
-        "video_duration_threshold": VIDEO_DURATION_THRESHOLD,
         "max_file_size_mb": MAX_FILE_SIZE // (1024 * 1024),
         "turnstile_enabled": True,
         "turnstile_site_key": "0x4AAAAAABHoxdccCZ_9Cezk"  # Add site key for frontend reference
@@ -468,7 +413,6 @@ if __name__ == '__main__':
     start_cleanup_thread()
     logger.info("Started cache cleanup thread")
     logger.info(f"Cache expiry set to {CACHE_EXPIRY} seconds")
-    logger.info(f"Videos longer than {VIDEO_DURATION_THRESHOLD} seconds will be compressed")
     logger.info("Cloudflare Turnstile protection enabled")
     
     # Run with optimized settings
