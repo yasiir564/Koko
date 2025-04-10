@@ -24,7 +24,7 @@ VIDEO_DURATION_THRESHOLD = 240  # 4 minutes in seconds
 # Cloudflare Turnstile Configuration
 # Site key from JS: 0x4AAAAAABHoxdccCZ_9Cezk
 # You need to use the secret key paired with this site key
-TURNSTILE_SECRET_KEY = "0x4AAAAAABIW_kgftT3_gX1pCGubqUHN9wv"  # This is a placeholder - replace with your actual secret key
+TURNSTILE_SECRET_KEY = "0x4AAAAAABHoxYr9SKSH_1ZBB4LpXbr_0sQ"  # This is a placeholder - replace with your actual secret key
 TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 
 # Set up logging
