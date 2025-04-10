@@ -15,8 +15,10 @@ app = Flask(__name__)
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(CURRENT_DIR, "uploads/")
 OUTPUT_DIR = os.path.join(CURRENT_DIR, "converted/")
+TEMP_DIR = os.path.join(CURRENT_DIR, "temp/")  # For temporary compressed videos
 MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB max file size
 CACHE_EXPIRY = 3600  # Files expire after 1 hour (in seconds)
+VIDEO_DURATION_THRESHOLD = 240  # 4 minutes in seconds
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +27,7 @@ logger = logging.getLogger(__name__)
 # Create directories if they don't exist
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(TEMP_DIR, exist_ok=True)
 
 # In-memory cache for recent conversions
 # Structure: {file_hash: {"output_path": path, "last_accessed": timestamp}}
@@ -55,6 +58,56 @@ def generate_file_hash(file_obj):
     
     file_obj.seek(0)  # Reset file pointer
     return file_hash.hexdigest()
+
+def get_video_duration(video_path):
+    """Get the duration of a video file in seconds using FFprobe"""
+    try:
+        cmd = [
+            "ffprobe", 
+            "-v", "error", 
+            "-show_entries", "format=duration", 
+            "-of", "default=noprint_wrappers=1:nokey=1", 
+            video_path
+        ]
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        duration = float(result.stdout.strip())
+        return duration
+    except Exception as e:
+        logger.error(f"Error getting video duration: {str(e)}")
+        return 0  # Return 0 if duration cannot be determined
+
+def compress_video(input_path, output_path):
+    """Compress video to reduce size while maintaining reasonable quality"""
+    try:
+        # Use more efficient compression settings for large videos
+        cmd = [
+            "ffmpeg",
+            "-i", input_path,
+            "-c:v", "libx264",
+            "-crf", "30",  # Higher CRF means more compression (lower quality)
+            "-preset", "ultrafast",  # Fastest encoding
+            "-c:a", "aac",
+            "-b:a", "128k",
+            "-vf", "scale=-2:720",  # Resize to 720p
+            "-threads", "0",
+            "-y",  # Overwrite output file if it exists
+            output_path
+        ]
+        
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        if result.returncode != 0:
+            raise Exception(f"Video compression failed: {result.stderr}")
+        
+        return True
+    except Exception as e:
+        logger.error(f"Compression error: {str(e)}")
+        return False
 
 @lru_cache(maxsize=10)
 def get_ffmpeg_version():
@@ -89,6 +142,18 @@ def cleanup_expired_files():
         # Remove expired entries from cache
         for key in expired_keys:
             del file_cache[key]
+            
+    # Also clean up any leftover files in the temp directory
+    for filename in os.listdir(TEMP_DIR):
+        file_path = os.path.join(TEMP_DIR, filename)
+        try:
+            if os.path.isfile(file_path):
+                file_age = current_time - os.path.getmtime(file_path)
+                if file_age > CACHE_EXPIRY:
+                    os.remove(file_path)
+                    logger.info(f"Removed expired temp file: {file_path}")
+        except Exception as e:
+            logger.error(f"Error cleaning temp file {file_path}: {str(e)}")
 
 def start_cleanup_thread():
     """Start a background thread to periodically clean up expired files"""
@@ -165,16 +230,39 @@ def convert_video():
         # Save the uploaded file
         video_file.save(video_path)
         
-        # Convert the video to MP3 using FFmpeg with optimized settings
+        # Check video duration
+        duration = get_video_duration(video_path)
+        logger.info(f"Video duration: {duration} seconds")
+        
+        # Source video to use for conversion
+        source_video_path = video_path
+        compressed = False
+        
+        # Compress the video if it's longer than the threshold
+        if duration > VIDEO_DURATION_THRESHOLD:
+            compressed_path = os.path.join(TEMP_DIR, f"compressed_{unique_video_name}")
+            logger.info(f"Compressing video (duration: {duration}s) before conversion")
+            
+            if compress_video(video_path, compressed_path):
+                source_video_path = compressed_path
+                compressed = True
+                logger.info(f"Video successfully compressed: {compressed_path}")
+            else:
+                logger.warning("Compression failed, using original video")
+        
+        # Modify FFmpeg command to be more memory-efficient
         ffmpeg_command = [
             "ffmpeg", 
-            "-i", video_path, 
+            "-i", source_video_path, 
             "-vn",  # No video
             "-ar", "44100",  # Audio sample rate
             "-ac", "2",  # Stereo
             "-b:a", "192k",  # Bitrate
             "-threads", "0",  # Use all available threads
-            "-preset", "fast",  # Use faster preset
+            "-bufsize", "3M",  # Smaller buffer size
+            "-maxrate", "384k",  # Maximum bitrate
+            "-preset", "ultrafast",  # Use fastest preset
+            "-f", "mp3",  # Force mp3 format
             output_path
         ]
         
@@ -202,22 +290,33 @@ def convert_video():
         
         logger.info(f"File converted and cached: {output_path}")
         
-        # Clean up the original file
+        # Clean up temporary files
         os.remove(video_path)
+        if compressed and os.path.exists(source_video_path) and source_video_path != video_path:
+            os.remove(source_video_path)
         
         # Return success response
         response = {
             'success': True,
             'filename': output_filename,
+            'compressed': compressed,
+            'duration': duration,
             'cached': False
         }
         
         return jsonify(response)
         
     except Exception as e:
+        # Log the full error for debugging
+        logger.error(f"Conversion error: {str(e)}")
+        
         # Delete the uploaded file if there was an error
         if 'video_path' in locals() and os.path.exists(video_path):
             os.remove(video_path)
+        
+        # Clean up compressed file if it exists
+        if 'compressed' in locals() and compressed and 'source_video_path' in locals() and os.path.exists(source_video_path):
+            os.remove(source_video_path)
         
         response = {'success': False, 'error': str(e)}
         return jsonify(response), 500
@@ -279,7 +378,9 @@ def status():
         "status": "running",
         "ffmpeg_version": get_ffmpeg_version(),
         "cached_files_count": cache_count,
-        "cache_expiry_seconds": CACHE_EXPIRY
+        "cache_expiry_seconds": CACHE_EXPIRY,
+        "video_duration_threshold": VIDEO_DURATION_THRESHOLD,
+        "max_file_size_mb": MAX_FILE_SIZE // (1024 * 1024)
     })
 
 @app.route('/clear-cache', methods=['POST'])
@@ -296,6 +397,7 @@ if __name__ == '__main__':
     start_cleanup_thread()
     logger.info("Started cache cleanup thread")
     logger.info(f"Cache expiry set to {CACHE_EXPIRY} seconds")
+    logger.info(f"Videos longer than {VIDEO_DURATION_THRESHOLD} seconds will be compressed")
     
     # Run with optimized settings
     app.run(host='0.0.0.0', threaded=True)
